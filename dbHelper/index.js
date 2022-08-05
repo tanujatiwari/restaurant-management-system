@@ -128,11 +128,11 @@ module.exports.getRestaurantsBySubadmin = async (subadminId, filterCol, filterOr
     `)
 }
 
-module.exports.getDishesBySubadmin = async (subadminId, filterCol, filterOrder, limit, offset) => {
+module.exports.getDishesBySubadmin = async (subadminId, restaurantId ,filterCol, filterOrder, limit, offset) => {
     return await pool.query(`
         with cte_dishes as(
             select id, name, description, user_id, restaurant_id from dishes
-            where user_id='${subadminId}' and is_archived=false
+            where user_id='${subadminId}' and is_archived=false and restaurant_id='${restaurantId}'
         )
         select * from cte_dishes
         join (select count(*) from dishes where user_id='${subadminId}') as total_dishes on true

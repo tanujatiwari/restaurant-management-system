@@ -151,8 +151,8 @@ module.exports.getUsers = async (req, res, next) => {
                 user.address = []
             }
             else {
-              const address = addressMap.get(user.user_id)
-              user.address = address 
+                const address = addressMap.get(user.user_id)
+                user.address = address
             }
         })
         const userCount = allUsers.rows.length === 0 ? 0 : allUsers.rows[0].count
@@ -192,7 +192,7 @@ module.exports.getRestaurants = async (req, res, next) => {
 
 module.exports.getDishes = async (req, res, next) => {
     const { limit = 10, offset = 0, filter_col = 'name', filter_order = 'asc' } = req.query
-    req.params
+    const { restId } = req.params
     try {
         const subadminId = req.subadmin.subadminId
         const checkRestaurantIdValid = await query.checkRestaurantIdValid(restId)
@@ -202,7 +202,7 @@ module.exports.getDishes = async (req, res, next) => {
             err.clientMessage = `Could not find the restaurant`
             return next(err)
         }
-        const result = await query.getDishesBySubadmin(subadminId, filter_col, filter_order, limit, offset)
+        const result = await query.getDishesBySubadmin(subadminId, restId, filter_col, filter_order, limit, offset)
         if (!result) {
             const err = new Error('An error occured while fetching dishes')
             err.clientMessage = 'Cannot fetch dishes. Please try again later..'

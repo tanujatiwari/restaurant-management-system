@@ -18,6 +18,6 @@ router.get('/users', authenticateSubadmin, subadmin.getUsers)
 
 router.get('/restaurants', authenticateSubadmin, subadmin.getRestaurants)
 
-router.get('/dishes', authenticateSubadmin, subadmin.getDishes)
+router.get('/:restId/dishes', authenticateSubadmin, subadmin.getDishes)
 
 module.exports = router
