@@ -129,17 +129,36 @@ module.exports.getUsers = async (req, res, next) => {
     const { limit = 10, offset = 0, filter_col = 'name', filter_order = 'asc' } = req.query
     try {
         const subadminId = req.subadmin.subadminId
-        const result = await query.getUsersBySubadmin(subadminId, filter_col, filter_order, limit, offset)
+        const allUsers = await query.getUsersBySubadmin(subadminId, filter_col, filter_order, limit, offset)
         if (!result) {
             const err = new Error('An error occured while fetching users')
             err.clientMessage = 'Cannot fetch users. Please try again later..'
             err.statusCode = 404
             return next(err)
         }
-        const userCount = result.rows.length === 0 ? 0 : result.rows[0].count
+        const userIdArray = allUsers.rows.map(e => e.user_id)
+        const allUsersAddresses = await query.getAllAddresses(userIdArray);
+        allUsersAddresses.rows.forEach(item => {
+            if (!addressMap.has(item.user_id)) {
+                addressMap.set(item.user_id, [item.address])
+            }
+            else {
+                addressMap.get(item.user_id).push(item.address)
+            }
+        })
+        allUsers.rows.forEach(user => {
+            if (!addressMap.get(user.user_id)) {
+                user.address = []
+            }
+            else {
+              const address = addressMap.get(user.user_id)
+              user.address = address 
+            }
+        })
+        const userCount = allUsers.rows.length === 0 ? 0 : allUsers.rows[0].count
         const dataToSend = {
             totalUsers: userCount,
-            data: result.rows
+            data: allUsers.rows
         }
         res.status(200).json(dataToSend)
     }
