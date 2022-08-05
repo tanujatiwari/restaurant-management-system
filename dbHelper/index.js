@@ -128,7 +128,7 @@ module.exports.getRestaurantsBySubadmin = async (subadminId, filterCol, filterOr
     `)
 }
 
-module.exports.getDishesBySubadmin = async (subadminId, restaurantId ,filterCol, filterOrder, limit, offset) => {
+module.exports.getDishesBySubadmin = async (subadminId, restaurantId, filterCol, filterOrder, limit, offset) => {
     return await pool.query(`
         with cte_dishes as(
             select id, name, description, user_id, restaurant_id from dishes
@@ -214,4 +214,8 @@ module.exports.checkRestaurantIdValid = async (restaurantId) => {
 
 module.exports.getAllAddresses = async (userIdArray) => {
     return pool.query(`select user_id, address from addresses where user_id=any ($1) and is_archived=false`, [userIdArray])
+}
+
+module.exports.checkRestaurantOwner = async (subadminId, restaurantId) => {
+    return pool.query(`select id from restaurants where restaurant_id='${restaurantId}' and user_id='${subadminId}'`)
 }

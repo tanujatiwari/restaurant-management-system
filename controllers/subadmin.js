@@ -117,6 +117,13 @@ module.exports.addDish = async (req, res, next) => {
             err.clientMessage = `Dish at restaurant already exists!`
             return next(err)
         }
+        const checkRestaurantOwner = await query.checkRestaurantOwner(subadminId, restId)
+        if (checkRestaurantOwner.rows.length === 0) {
+            const err = new Error(`This restaurant was not created by the subadmin`)
+            err.statusCode = 400
+            err.clientMessage = `You cannot add dish in the restaurant you have not created`
+            return next(err)
+        }
         await query.addDish(name, description, subadminId, restId)
         res.status(201).send('Dish added to your restaurant!')
     }
