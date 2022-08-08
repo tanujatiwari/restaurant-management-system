@@ -1,34 +1,38 @@
 import query from '../dbHelper/index'
+import { Request, Response, NextFunction } from 'express'
 
-interface Error {
-    message: string,
+interface CustomError extends Error {
     clientMessage?: string,
     statusCode?: number
 }
 
-async function authenticateAdmin(req: any, res: any, next: any) {
-    const sessionId = req.headers.sessionid
+export interface CustomRequest extends Request {
+    adminId: string,
+    sessionId: string
+}
+
+async function authenticateAdmin(request: Request, res: Response, next: NextFunction) {
+    const req = request as CustomRequest
+    const sessionId= req.headers.sessionid as string
     if (!sessionId) {
-        const err: Error = new Error('Could not find Session Id in database')
+        const err: CustomError = new Error('Could not find Session Id in database')
         err.clientMessage = 'Please login or register first'
         err.statusCode = 400
         return next(err)
     }
     const checkValidSession = await query.checkValidSession(sessionId, 'admin')
     if (!checkValidSession) {
-        const err = new Error()
+        const err:CustomError = new Error()
         return next(err)
     }
-    if (checkValidSession.rows.length === 0) {
-        const err: Error = new Error('Could not find session details in database')
+    if (checkValidSession.rows.length  === 0) {
+        const err: CustomError = new Error('Could not find session details in database')
         err.statusCode = 403
         err.clientMessage = 'This is an invalid session. Please login again...'
         return next(err)
     }
-    req.admin = {
-        adminId: checkValidSession.rows[0].user_id,
-        sessionId: sessionId
-    }
+    req.adminId = checkValidSession.rows[0].user_id
+    req.sessionId = sessionId
     next()
 }
 

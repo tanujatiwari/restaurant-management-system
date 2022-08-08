@@ -1,13 +1,13 @@
-const Joi = require('joi')
+import Joi from "joi";
+import { Request, Response, NextFunction } from 'express'
 
-interface Error {
-    message: string;
+interface CustomError extends Error {
     statusCode?: number;
     clientMessage?: string;
 }
 
 const validations = {
-    validateAddress: async (req: any, res: any, next: any) => {
+    validateAddress: async (req: Request, res: Response, next: NextFunction) => {
         const addressSchema = Joi.object({
             address: Joi.string().required().min(10),
             lat: Joi.number().required().min(-90).max(90),
@@ -15,15 +15,15 @@ const validations = {
         })
         const { error } = addressSchema.validate(req.body)
         if (error) {
-            const err: Error = new Error(error)
+            const err: CustomError = new Error(error.message)
             err.statusCode = 400
-            err.clientMessage = error.details[0].message
+            err.clientMessage = error.message
             return next(err)
         }
         next()
     },
 
-    validateRegisterDetails: async (req: any, res: any, next: any) => {
+    validateRegisterDetails: async (req: Request, res: Response, next: NextFunction) => {
         const registerSchema = Joi.object({
             email: Joi.string().email().required(),
             password: Joi.required(),
@@ -31,30 +31,30 @@ const validations = {
         })
         const { error } = registerSchema.validate(req.body)
         if (error) {
-            const err: Error = new Error(error)
+            const err: CustomError = new Error(error.message)
             err.statusCode = 400
-            err.clientMessage = error.details[0].message
+            err.clientMessage = error.message
             return next(err)
         }
         next()
     },
 
-    validateLoginDetails: async (req: any, res: any, next: any) => {
+    validateLoginDetails: async (req: Request, res: Response, next: NextFunction) => {
         const loginSchema = Joi.object({
             email: Joi.string().email().required(),
             password: Joi.required(),
         })
         const { error } = loginSchema.validate(req.body)
         if (error) {
-            const err: Error = new Error(error)
+            const err: CustomError = new Error(error.message)
             err.statusCode = 400
-            err.clientMessage = error.details[0].message
+            err.clientMessage = error.message
             return next(err)
         }
         next()
     },
 
-    validateAddRestaurant: async (req: any, res: any, next: any) => {
+    validateAddRestaurant: async (req: Request, res: Response, next: NextFunction) => {
         const addRestSchema = Joi.object({
             name: Joi.string().required(),
             lat: Joi.number().required().min(-90).max(90),
@@ -62,30 +62,30 @@ const validations = {
         })
         const { error } = addRestSchema.validate(req.body)
         if (error) {
-            const err: Error = new Error(error)
+            const err: CustomError = new Error(error.message)
             err.statusCode = 400
-            err.clientMessage = error.details[0].message
+            err.clientMessage = error.message
             return next(err)
         }
         next()
     },
 
-    validateAddDish: async (req: any, res: any, next: any) => {
+    validateAddDish: async (req: Request, res: Response, next: NextFunction) => {
         const addDishSchema = Joi.object({
             name: Joi.string().min(5).max(30).required(),
             description: Joi.string().min(5).max(200).required()
         })
         const { error } = addDishSchema.validate(req.body)
         if (error) {
-            const err: Error = new Error(error)
+            const err: CustomError = new Error(error.message)
             err.statusCode = 400
-            err.clientMessage = error.details[0].message
+            err.clientMessage = error.message
             return next(err)
         }
         next()
     },
 
-    validateAddMember: async (req: any, res: any, next: any) => {
+    validateAddMember: async (req: Request, res: Response, next: NextFunction) => {
         const registerSchema = Joi.object({
             email: Joi.string().email(),
             password: Joi.required(),
@@ -94,9 +94,9 @@ const validations = {
         })
         const { error } = registerSchema.validate(req.body)
         if (error) {
-            const err: Error = new Error(error)
+            const err: CustomError = new Error(error.message)
             err.statusCode = 400
-            err.clientMessage = error.details[0].message
+            err.clientMessage = error.message
             return next(err)
         }
         next()

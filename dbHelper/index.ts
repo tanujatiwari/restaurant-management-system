@@ -8,9 +8,9 @@ const query = {
             )
             select * from all_rest
             join (select count(*) as count from all_rest) as total_restaurants on TRUE
-            order by $1 $2
-            limit $3 offset $4;
-        `, [filterCol, filterOrder, limit, offset])
+            order by ${filterCol} ${filterOrder}
+            limit $1 offset $2;
+        `, [limit, offset])
     },
 
     getAllDishes: async (limit: number, offset: number, filterCol: string, filterOrder: string, restaurantId: string) => {
@@ -21,9 +21,9 @@ const query = {
             )
             select * from all_dishes
             join (select count(*) as count from all_dishes) as total_dishes on TRUE
-            order by $2 $3
-            limit $4 offset $5;
-        `, [restaurantId, filterCol, filterOrder, limit, offset])
+            order by ${filterCol} ${filterOrder}
+            limit $2 offset $3;
+        `, [restaurantId, limit, offset])
     },
 
     addUserAddress: async (userId: string, address: string, geopoint: string) => {
@@ -111,9 +111,9 @@ const query = {
             join (select count(*) from roles where created_by=$1 and is_archived=false) as total_users_by_subadmin on true
             join roles r on r.user_id = cte_users.user_id
             where role='user' and created_by=$1
-            order by $2 $3
-            limit $4 offset $5;
-        `, [subadminId, filterCol, filterOrder, limit, offset])
+            order by ${filterCol} ${filterOrder}
+            limit $2 offset $3;
+        `, [subadminId, limit, offset])
     },
 
     getRestaurantsBySubadmin: async (subadminId: string, filterCol: string, filterOrder: string, limit: number, offset: number) => {
@@ -124,9 +124,9 @@ const query = {
             )
             select * from cte_restaurants
             join (select count(*) from restaurants where user_id=$1) as total_restaurants on true
-            order by $2 $3
-            limit $4 offset $5;
-        `, [subadminId, filterCol, filterOrder, limit, offset])
+            order by ${filterCol} ${filterOrder}
+            limit $2 offset $3;
+        `, [subadminId, limit, offset])
     },
 
     getDishesBySubadmin: async (subadminId: string, restaurantId: string, filterCol: string, filterOrder: string, limit: number, offset: number) => {
@@ -137,9 +137,9 @@ const query = {
             )
             select * from cte_dishes
             join (select count(*) from dishes where user_id=$2) as total_dishes on true
-            order by $3 $4
-            limit $5 offset $6;
-        `, [restaurantId, subadminId, filterCol, filterOrder, limit, offset])
+            order by ${filterCol} ${filterOrder}
+            limit $3 offset $4;
+        `, [restaurantId, subadminId, limit, offset])
     },
 
     getAllSubadmins: async (filterCol: string, filterOrder: string, limit: number, offset: number) => {
@@ -151,9 +151,9 @@ const query = {
             join roles r on r.user_id=cte_subadmins.user_id
             join (select count(*) from roles r where role='subadmin' and r.is_archived=false) as total_subadmins on true
             where r.role='subadmin' and r.is_archived=false
-            order by $1 $2
-            limit $3 offset $4;
-        `, [filterCol, filterOrder, limit, offset])
+            order by ${filterCol} ${filterOrder}
+            limit $1 offset $2;
+        `, [limit, offset])
     },
 
     getAllUsers: async (filterCol: string, filterOrder: string, limit: number, offset: number) => {
@@ -165,9 +165,9 @@ const query = {
             join roles using(user_id)
             join (select count(*) from roles where role='user' and is_archived=false) as total_users on true
             where role='user' and roles.is_archived=false
-            order by $1 $2
-            limit $3 offset $4;
-        `, [filterCol, filterOrder, limit, offset])
+            order by ${filterCol} ${filterOrder}
+            limit $1 offset $2;
+        `, [limit, offset])
     },
 
     checkAddressExists: async (userId: string, geopoint: string) => {

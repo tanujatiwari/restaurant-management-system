@@ -12,14 +12,14 @@ app.use('/user', user)
 app.use('/admin', admin)
 app.use('/subadmin', subadmin)
 
-interface Error {
+interface CustomError extends Error {
     message: string;
     statusCode?: number;
     clientMessage?: string;
 }
 
 app.use((req, res, next) => {
-    const err: Error = new Error(`Cannot GET ${req.path}`)
+    const err: CustomError = new Error(`Cannot GET ${req.path}`)
     err.statusCode = 404
     err.clientMessage = `Requested URL ${req.path} not found`
     next(err)
@@ -27,7 +27,7 @@ app.use((req, res, next) => {
 
 app.use(errorHandler)
 
-const port = process.env.PORT || 3000
+const port = (process.env.PORT || 3000) as number
 app.listen(port, () => {
     console.log(`Server started on port ${port}`)
 })
