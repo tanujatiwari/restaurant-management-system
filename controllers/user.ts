@@ -1,13 +1,19 @@
-const bcrypt = require('bcrypt')
-const query = require('../dbHelper/index')
-const pool = require('../models/index')
+import bcrypt from 'bcrypt'
+import query from '../dbHelper/index'
+import pool from '../models/index'
 
-module.exports.restaurants = async (req, res, next) => {
+interface Error {
+    message: string;
+    statusCode?: number;
+    clientMessage?: string;
+}
+
+const restaurants = async (req: any, res: any, next: any) => {
     const { limit = 10, offset = 0, filter_col = 'ratings', filter_order = 'asc' } = req.query
     try {
         const restaurants = await query.getAllRestaurants(limit, offset, filter_col, filter_order)
         if (!restaurants) {
-            const err = new Error('An error occured while fetching restaurants')
+            const err: Error = new Error('An error occured while fetching restaurants')
             err.clientMessage = 'Cannot fetch restaurants. Please try again later..'
             err.statusCode = 404
             return next(err)
@@ -24,20 +30,20 @@ module.exports.restaurants = async (req, res, next) => {
     }
 }
 
-module.exports.dishes = async (req, res, next) => {
+const dishes = async (req: any, res: any, next: any) => {
     const { limit = 10, offset = 0, filter_col = 'name', filter_order = 'asc' } = req.query;
     const { restId } = req.params;
     try {
         const checkRestaurantIdValid = await query.checkRestaurantIdValid(restId)
         if (checkRestaurantIdValid.rows.length === 0) {
-            const err = new Error(`Invalid Restaurant Id in params`)
+            const err: Error = new Error(`Invalid Restaurant Id in params`)
             err.statusCode = 400
             err.clientMessage = `Could not find the restaurant`
             return next(err)
         }
         const dishes = await query.getAllDishes(limit, offset, filter_col, filter_order, restId)
         if (!dishes) {
-            const err = new Error(`An error occured while fetching dishes.`)
+            const err: Error = new Error(`An error occured while fetching dishes.`)
             err.clientMessage = 'Cannot fetch dishes. Please try again later...'
             err.statusCode = 404
             return next(err)
@@ -54,13 +60,13 @@ module.exports.dishes = async (req, res, next) => {
     }
 }
 
-module.exports.addAddress = async (req, res, next) => {
+const addAddress = async (req: any, res: any, next: any) => {
     try {
         const { address, lat, lon } = req.body
         const geopoint = `${lon}, ${lat}`
         const addressCheck = await query.checkAddressExists(req.user.userId, geopoint)
         if (addressCheck.rows.length !== 0) {
-            const err = new Error(`Address already exists!`)
+            const err: Error = new Error(`Address already exists!`)
             err.clientMessage = `Address already exists!`
             err.statusCode = 409
             return next(err)
@@ -73,7 +79,7 @@ module.exports.addAddress = async (req, res, next) => {
     }
 }
 
-module.exports.register = (async (req, res, next) => {
+const register = (async (req: any, res: any, next: any) => {
     const { email, password, name } = req.body
     const bcryptRounds = 10
     const client = await pool.connect()
@@ -98,7 +104,7 @@ module.exports.register = (async (req, res, next) => {
     client.release();
 })
 
-module.exports.login = async (req, res, next) => {
+const login = async (req: any, res: any, next: any) => {
     const { email, password } = req.body;
     try {
         const getUserIdPassword = await query.getUserCredentials(email)
@@ -107,7 +113,7 @@ module.exports.login = async (req, res, next) => {
             return next(err)
         }
         if (getUserIdPassword.rows.length === 0) {
-            const err = new Error('User not found in database')
+            const err: Error = new Error('User not found in database')
             err.clientMessage = `Please register first`
             err.statusCode = 400
             return next(err)
@@ -124,7 +130,7 @@ module.exports.login = async (req, res, next) => {
             return res.status(200).json(userDetails)
         }
         else {
-            const err = new Error('Email and password does not match')
+            const err: Error = new Error('Email and password does not match')
             err.statusCode = 401
             err.clientMessage = 'Email and password does not match'
             return next(err)
@@ -135,7 +141,7 @@ module.exports.login = async (req, res, next) => {
     }
 }
 
-module.exports.logout = async (req, res) => {
+const logout = async (req: any, res: any, next: any) => {
     try {
         const { sessionId } = req.user;
         const curr_date = new Date()
@@ -146,3 +152,14 @@ module.exports.logout = async (req, res) => {
         next(err)
     }
 }
+
+const user = {
+    register,
+    login,
+    logout,
+    restaurants,
+    dishes,
+    addAddress
+}
+
+export default user

@@ -1,4 +1,10 @@
-module.exports.errorHandler = ((err, req, res, next) => {
+interface Error {
+    message: string;
+    statusCode?: number;
+    clientMessage?: string;
+}
+
+const errorHandler = ((err: Error, req: any, res: any, next: any) => {
     const statusCode = err.statusCode || 500
     const defaultError = 'Something went wrong. Please try again later.'
     res.status(statusCode).json({
@@ -6,3 +12,5 @@ module.exports.errorHandler = ((err, req, res, next) => {
         messageToClient: err.clientMessage || defaultError
     })
 })
+
+export default errorHandler

@@ -1,9 +1,15 @@
-const query = require('../dbHelper/index')
+import query from '../dbHelper/index'
 
-async function authenticateSubadmin(req, res, next) {
+interface Error {
+    message: string,
+    statusCode?: number,
+    clientMessage?: string
+}
+
+async function authenticateSubadmin(req: any, res: any, next: any) {
     const sessionId = req.headers.sessionid
     if (!sessionId) {
-        const err = new Error('Could not find Session Id in database')
+        const err: Error = new Error('Could not find Session Id in database')
         err.clientMessage = 'Please login or register first'
         err.statusCode = 400
         return next(err)
@@ -14,7 +20,7 @@ async function authenticateSubadmin(req, res, next) {
         return next(err)
     }
     if (checkValidSession.rows.length === 0) {
-        const err = new Error('Could not find session details in database')
+        const err: Error = new Error('Could not find session details in database')
         err.statusCode = 403
         err.clientMessage = 'This is an invalid session. Please login again...'
         return next(err)
@@ -26,4 +32,4 @@ async function authenticateSubadmin(req, res, next) {
     next()
 }
 
-module.exports = authenticateSubadmin
+export default authenticateSubadmin

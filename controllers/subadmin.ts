@@ -1,8 +1,14 @@
-const bcrypt = require('bcrypt')
-const query = require('../dbHelper/index')
-const pool = require('../models/index')
+import bcrypt from 'bcrypt';
+import query from '../dbHelper/index'
+import pool from '../models/index'
 
-module.exports.login = async (req, res, next) => {
+interface Error {
+    message: string;
+    statusCode?: number;
+    clientMessage?: string;
+}
+
+const login = async (req: any, res: any, next: any) => {
     try {
         const { email, password } = req.body;
         const getSubadminCredentials = await query.getAdminCredentials(email, 'subadmin')
@@ -11,7 +17,7 @@ module.exports.login = async (req, res, next) => {
             return next(err)
         }
         if (getSubadminCredentials.rows.length === 0) {
-            const err = new Error('Subadmin not found in database')
+            const err: Error = new Error('Subadmin not found in database')
             err.clientMessage = `Please enter correct subadmin credentials`
             err.statusCode = 400
             return next(err)
@@ -25,7 +31,7 @@ module.exports.login = async (req, res, next) => {
             return res.status(200).json(userDetails)
         }
         else {
-            const err = new Error('Email and password does not match')
+            const err: Error = new Error('Email and password does not match')
             err.statusCode = 401
             err.clientMessage = 'Email and password does not match'
             return next(err)
@@ -36,7 +42,7 @@ module.exports.login = async (req, res, next) => {
     }
 }
 
-module.exports.logout = async (req, res, next) => {
+const logout = async (req: any, res: any, next: any) => {
     try {
         const { sessionId } = req.subadmin;
         const curr_date = new Date()
@@ -48,7 +54,7 @@ module.exports.logout = async (req, res, next) => {
     }
 }
 
-module.exports.addUser = async (req, res, next) => {
+const addUser = async (req: any, res: any, next: any) => {
     const { name, email, password } = req.body;
     const subadminId = req.subadmin.subadminId
     const bcryptRounds = 10;
@@ -57,11 +63,11 @@ module.exports.addUser = async (req, res, next) => {
         const hashedPassword = await bcrypt.hashSync(password, bcryptRounds);
         await client.query('BEGIN')
         await query.addUser(email, hashedPassword, name)
-        await query.getUserCredentials(email)
+        const userId = await query.getUserCredentials(email)
         const newUserId = userId.rows[0].id;
         const checkUserRole = await query.checkUserRoleExists(newUserId, 'user')
         if (checkUserRole.rows.length !== 0) {
-            const err = new Error(`User with user role already exists!`)
+            const err: Error = new Error(`User with user role already exists!`)
             err.statusCode = 400
             err.clientMessage = `User with user role already exists!`
             throw err
@@ -78,14 +84,14 @@ module.exports.addUser = async (req, res, next) => {
     client.release()
 }
 
-module.exports.addRestaurant = async (req, res, next) => {
+const addRestaurant = async (req: any, res: any, next: any) => {
     const { name, lat, lon } = req.body;
     const geopoint = `${lon}, ${lat}`;
     try {
         const subadminId = req.subadmin.subadminId
         const checkRestaurantExists = await query.checkRestaurantExists(name, geopoint);
         if (checkRestaurantExists.rows.length !== 0) {
-            const err = new Error(`Restaurant already exists!`)
+            const err: Error = new Error(`Restaurant already exists!`)
             err.statusCode = 400
             err.clientMessage = `Restaurant already exists!`
             return next(err)
@@ -98,28 +104,28 @@ module.exports.addRestaurant = async (req, res, next) => {
     }
 }
 
-module.exports.addDish = async (req, res, next) => {
+const addDish = async (req: any, res: any, next: any) => {
     const { name, description } = req.body;
     const { restId } = req.params
     try {
         const subadminId = req.subadmin.subadminId
         const checkRestaurantIdValid = await query.checkRestaurantIdValid(restId)
         if (checkRestaurantIdValid.rows.length === 0) {
-            const err = new Error(`Invalid Restaurant Id in params`)
+            const err: Error = new Error(`Invalid Restaurant Id in params`)
             err.statusCode = 400
             err.clientMessage = `Could not find the restaurant`
             return next(err)
         }
         const checkDishExists = await query.checkDishExists(name, restId);
         if (checkDishExists.rows.length !== 0) {
-            const err = new Error(`Dish at restaurant already exists!`)
+            const err: Error = new Error(`Dish at restaurant already exists!`)
             err.statusCode = 400
             err.clientMessage = `Dish at restaurant already exists!`
             return next(err)
         }
         const checkRestaurantOwner = await query.checkRestaurantOwner(subadminId, restId)
         if (checkRestaurantOwner.rows.length === 0) {
-            const err = new Error(`This restaurant was not created by the subadmin`)
+            const err: Error = new Error(`This restaurant was not created by the subadmin`)
             err.statusCode = 400
             err.clientMessage = `You cannot add dish in the restaurant you have not created`
             return next(err)
@@ -132,18 +138,19 @@ module.exports.addDish = async (req, res, next) => {
     }
 }
 
-module.exports.getUsers = async (req, res, next) => {
+const getUsers = async (req: any, res: any, next: any) => {
     const { limit = 10, offset = 0, filter_col = 'name', filter_order = 'asc' } = req.query
     try {
         const subadminId = req.subadmin.subadminId
         const allUsers = await query.getUsersBySubadmin(subadminId, filter_col, filter_order, limit, offset)
-        if (!result) {
-            const err = new Error('An error occured while fetching users')
+        if (!allUsers) {
+            const err: Error = new Error('An error occured while fetching users')
             err.clientMessage = 'Cannot fetch users. Please try again later..'
             err.statusCode = 404
             return next(err)
         }
         const userIdArray = allUsers.rows.map(e => e.user_id)
+        const addressMap = new Map()
         const allUsersAddresses = await query.getAllAddresses(userIdArray);
         allUsersAddresses.rows.forEach(item => {
             if (!addressMap.has(item.user_id)) {
@@ -174,13 +181,13 @@ module.exports.getUsers = async (req, res, next) => {
     }
 }
 
-module.exports.getRestaurants = async (req, res, next) => {
+const getRestaurants = async (req: any, res: any, next: any) => {
     const { limit = 10, offset = 0, filter_col = 'name', filter_order = 'asc' } = req.query
     try {
         const subadminId = req.subadmin.subadminId
         const result = await query.getRestaurantsBySubadmin(subadminId, filter_col, filter_order, limit, offset)
         if (!result) {
-            const err = new Error('An error occured while fetching restaurants')
+            const err: Error = new Error('An error occured while fetching restaurants')
             err.clientMessage = 'Cannot fetch restaurants. Please try again later..'
             err.statusCode = 404
             return next(err)
@@ -197,21 +204,21 @@ module.exports.getRestaurants = async (req, res, next) => {
     }
 }
 
-module.exports.getDishes = async (req, res, next) => {
+const getDishes = async (req: any, res: any, next: any) => {
     const { limit = 10, offset = 0, filter_col = 'name', filter_order = 'asc' } = req.query
     const { restId } = req.params
     try {
         const subadminId = req.subadmin.subadminId
         const checkRestaurantIdValid = await query.checkRestaurantIdValid(restId)
         if (checkRestaurantIdValid.rows.length === 0) {
-            const err = new Error(`Invalid Restaurant Id in params`)
+            const err: Error = new Error(`Invalid Restaurant Id in params`)
             err.statusCode = 400
             err.clientMessage = `Could not find the restaurant`
             return next(err)
         }
         const result = await query.getDishesBySubadmin(subadminId, restId, filter_col, filter_order, limit, offset)
         if (!result) {
-            const err = new Error('An error occured while fetching dishes')
+            const err: Error = new Error('An error occured while fetching dishes')
             err.clientMessage = 'Cannot fetch dishes. Please try again later..'
             err.statusCode = 404
             return next(err)
@@ -227,3 +234,16 @@ module.exports.getDishes = async (req, res, next) => {
         next(e)
     }
 }
+
+const subadmin = {
+    login,
+    logout,
+    addUser,
+    addRestaurant,
+    addDish,
+    getDishes,
+    getRestaurants,
+    getUsers
+}
+
+export default subadmin

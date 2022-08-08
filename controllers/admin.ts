@@ -1,8 +1,14 @@
-const bcrypt = require('bcrypt')
-const query = require('../dbHelper/index')
-const pool = require('../models')
+import * as bcrypt from "bcrypt"
+import query from '../dbHelper/index'
+import pool from '../models'
 
-module.exports.login = async (req, res, next) => {
+interface Error {
+    message: string,
+    clientMessage?: string,
+    statusCode?: number
+}
+
+const login = async (req: any, res: any, next: any) => {
     try {
         const { email, password } = req.body
         const getAdminCredentials = await query.getAdminCredentials(email, 'admin')
@@ -11,7 +17,7 @@ module.exports.login = async (req, res, next) => {
             return next(err)
         }
         if (getAdminCredentials.rows.length === 0) {
-            const err = new Error('Admin not found in database')
+            const err: Error = new Error('Admin not found in database')
             err.clientMessage = `Please enter admin credentials`
             err.statusCode = 400
             return next(err)
@@ -25,7 +31,7 @@ module.exports.login = async (req, res, next) => {
             return res.status(200).json(userDetails)
         }
         else {
-            const err = new Error('Email and password does not match')
+            const err: Error = new Error('Email and password does not match')
             err.statusCode = 401
             err.clientMessage = 'Email and password does not match'
             return next(err)
@@ -36,7 +42,7 @@ module.exports.login = async (req, res, next) => {
     }
 }
 
-module.exports.logout = async (req, res, next) => {
+const logout = async (req: any, res: any, next: any) => {
     try {
         const { sessionId } = req.admin;
         const curr_date = new Date()
@@ -48,12 +54,12 @@ module.exports.logout = async (req, res, next) => {
     }
 }
 
-module.exports.getAllSubadmins = async (req, res, next) => {
+const getAllSubadmins = async (req: any, res: any, next: any) => {
     const { limit = 10, offset = 0, filter_col = 'name', filter_order = 'asc' } = req.params
     try {
         const allSubAdmins = await query.getAllSubadmins(filter_col, filter_order, limit, offset)
         if (!allSubAdmins) {
-            const err = new Error('An error occured while fetching sub admins')
+            const err: Error = new Error('An error occured while fetching sub admins')
             err.clientMessage = 'Cannot fetch sub admins. Please try again later..'
             err.statusCode = 404
             return next(err)
@@ -70,12 +76,12 @@ module.exports.getAllSubadmins = async (req, res, next) => {
     }
 }
 
-module.exports.getAllUsers = async (req, res, next) => {
+const getAllUsers = async (req: any, res: any, next: any) => {
     const { limit = 10, offset = 0, filter_col = 'name', filter_order = 'asc' } = req.query
     try {
         const allUsers = await query.getAllUsers(filter_col, filter_order, limit, offset)
         if (!allUsers) {
-            const err = new Error('An error occured while fetching users')
+            const err: Error = new Error('An error occured while fetching users')
             err.clientMessage = 'Cannot fetch users. Please try again later..'
             err.statusCode = 500
             return next(err)
@@ -96,8 +102,8 @@ module.exports.getAllUsers = async (req, res, next) => {
                 user.address = []
             }
             else {
-              const address = addressMap.get(user.user_id)
-              user.address = address 
+                const address = addressMap.get(user.user_id)
+                user.address = address
             }
         })
         const userCount = allUsers.rows.length === 0 ? 0 : allUsers.rows[0].count
@@ -112,7 +118,7 @@ module.exports.getAllUsers = async (req, res, next) => {
     }
 }
 
-module.exports.addMember = async (req, res, next) => {
+const addMember = async (req: any, res: any, next: any) => {
     const { name, email, password, role } = req.body;
     const bcryptRounds = 10;
     const client = await pool.connect()
@@ -124,7 +130,7 @@ module.exports.addMember = async (req, res, next) => {
         const newUserId = userId.rows[0].id;
         const checkUserRole = await query.checkUserRoleExists(newUserId, role)
         if (checkUserRole.rows.length !== 0) {
-            const err = new Error(`User with ${role} role already exists!`)
+            const err: Error = new Error(`User with ${role} role already exists!`)
             err.statusCode = 400
             err.clientMessage = `User with ${role} role already exists!`
             throw err
@@ -141,14 +147,14 @@ module.exports.addMember = async (req, res, next) => {
     client.release()
 }
 
-module.exports.addRestaurant = async (req, res, next) => {
+const addRestaurant = async (req: any, res: any, next: any) => {
     const { name, lat, lon } = req.body;
     const geopoint = `${lon}, ${lat}`;
     try {
         const adminId = req.admin.adminId
         const checkRestaurantExists = await query.checkRestaurantExists(name, geopoint);
         if (checkRestaurantExists.rows.length !== 0) {
-            const err = new Error(`Restaurant already exists!`)
+            const err: Error = new Error(`Restaurant already exists!`)
             err.statusCode = 400
             err.clientMessage = `Restaurant already exists!`
             return next(err)
@@ -161,21 +167,21 @@ module.exports.addRestaurant = async (req, res, next) => {
     }
 }
 
-module.exports.addDish = async (req, res, next) => {
+const addDish = async (req: any, res: any, next: any) => {
     const { name, description } = req.body;
     const { restId } = req.params
     try {
         const adminId = req.admin.adminId
         const checkRestaurantIdValid = await query.checkRestaurantIdValid(restId)
         if (checkRestaurantIdValid.rows.length === 0) {
-            const err = new Error(`Invalid Restaurant Id in params`)
+            const err: Error = new Error(`Invalid Restaurant Id in params`)
             err.statusCode = 400
             err.clientMessage = `Could not find the restaurant`
             return next(err)
         }
         const checkDishExists = await query.checkDishExists(name, restId);
         if (checkDishExists.rows.length !== 0) {
-            const err = new Error(`Dish at restaurant already exists!`)
+            const err: Error = new Error(`Dish at restaurant already exists!`)
             err.statusCode = 400
             err.clientMessage = `Dish at restaurant already exists!`
             return next(err)
@@ -187,3 +193,15 @@ module.exports.addDish = async (req, res, next) => {
         next(e)
     }
 }
+
+const admin = {
+    login,
+    logout,
+    addDish,
+    addMember,
+    addRestaurant,
+    getAllSubadmins,
+    getAllUsers
+}
+
+export default admin
