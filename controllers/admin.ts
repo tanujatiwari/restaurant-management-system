@@ -229,7 +229,7 @@ const addDish = async (request: Request, res: Response, next: NextFunction) => {
     }
 }
 
-const admin = {
+const admin = { 
     login,
     logout,
     addDish,

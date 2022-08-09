@@ -13,7 +13,6 @@ app.use('/admin', admin)
 app.use('/subadmin', subadmin)
 
 interface CustomError extends Error {
-    message: string;
     statusCode?: number;
     clientMessage?: string;
 }
