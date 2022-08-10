@@ -7,6 +7,7 @@ require("dotenv/config");
 const express = require("express");
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 const user_1 = __importDefault(require("./routes/user"));
 const admin_1 = __importDefault(require("./routes/admin"));
 const subadmin_1 = __importDefault(require("./routes/subadmin"));
@@ -21,7 +22,7 @@ app.use((req, res, next) => {
     next(err);
 });
 app.use(errorHandling_1.default);
-const port = (process.env.PORT || 3000);
+const port = (process.env.SERVER_PORT || 3000);
 app.listen(port, () => {
     console.log(`Server started on port ${port}`);
 });

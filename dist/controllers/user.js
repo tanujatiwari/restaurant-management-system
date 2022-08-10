@@ -15,6 +15,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const index_1 = __importDefault(require("../dbHelper/index"));
 const index_2 = __importDefault(require("../models/index"));
+const express_1 = __importDefault(require("express"));
+const app = (0, express_1.default)();
+const path_1 = __importDefault(require("path"));
+const firebase_admin_1 = __importDefault(require("firebase-admin"));
+const firebaseAccountCredentials = require('../serviceAccountKey.json');
+firebase_admin_1.default.initializeApp({
+    credential: firebase_admin_1.default.credential.cert(firebaseAccountCredentials),
+    storageBucket: process.env.FIREBASE_BUCKET,
+});
+app.locals.bucket = firebase_admin_1.default.storage().bucket();
 const restaurants = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { limit = 10, page = 1, filterCol = 'ratings', filterOrder = 'asc' } = req.query;
     try {
@@ -156,12 +166,37 @@ const logout = (request, res, next) => __awaiter(void 0, void 0, void 0, functio
         next(err);
     }
 });
+const uploadPhoto = (request, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const req = request;
+    try {
+        const file = req.file;
+        const fileType = (_a = req.file) === null || _a === void 0 ? void 0 : _a.originalname.split('.')[1];
+        if (fileType === 'jpg' || fileType === 'jpeg' || fileType === 'png') {
+            const userId = req.userId;
+            const name = file === null || file === void 0 ? void 0 : file.originalname;
+            const fileName = userId + name + path_1.default.extname(name);
+            yield app.locals.bucket.file(fileName).createWriteStream().end(file === null || file === void 0 ? void 0 : file.buffer);
+            res.status(200).send('File uploaded successfully!');
+        }
+        else {
+            const err = new Error(`Uploaded file is of type ${fileType}. Must be an image`);
+            err.statusCode = 401;
+            err.clientMessage = 'The file should be .jpg .jpeg .png';
+            return next(err);
+        }
+    }
+    catch (err) {
+        next(err);
+    }
+});
 const user = {
     register,
     login,
     logout,
     restaurants,
     dishes,
-    addAddress
+    addAddress,
+    uploadPhoto
 };
 exports.default = user;

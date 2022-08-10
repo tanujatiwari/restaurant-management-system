@@ -1,7 +1,24 @@
 import bcrypt from 'bcrypt'
 import query from '../dbHelper/index'
 import pool from '../models/index'
+
+import express from 'express';
+const app = express()
+
+import path from 'path';
+
 import { Request, Response, NextFunction } from 'express'
+
+import admin from "firebase-admin"
+
+const firebaseAccountCredentials = require('../serviceAccountKey.json')
+
+admin.initializeApp({
+    credential: admin.credential.cert(firebaseAccountCredentials),
+    storageBucket: process.env.FIREBASE_BUCKET,
+});
+
+app.locals.bucket = admin.storage().bucket()
 
 interface CustomError extends Error {
     statusCode?: number;
@@ -76,7 +93,7 @@ const dishes = async (req: Request, res: Response, next: NextFunction) => {
 const addAddress = async (request: Request, res: Response, next: NextFunction) => {
     const req = request as CustomRequest
     try {
-        const { address, lat, lon } = req.body as unknown as { address: string, lat: number, lon: number }
+        const { address, lat, lon }: { address: string, lat: string, lon: string } = req.body
         const geopoint: string = `${lon}, ${lat}`
         const addressCheck = await query.checkAddressExists(req.userId, geopoint)
         if (addressCheck.rows.length !== 0) {
@@ -168,13 +185,38 @@ const logout = async (request: Request, res: Response, next: NextFunction) => {
     }
 }
 
+const uploadPhoto = async (request: Request, res: Response, next: NextFunction) => {
+    const req = request as CustomRequest
+    try {
+        const file = req.file
+        const fileType = req.file?.originalname.split('.')[1]
+        if (fileType === 'jpg' || fileType ==='jpeg' || fileType==='png') {
+            const userId = req.userId
+            const name = file?.originalname as string
+            const fileName = userId + name + path.extname(name)
+            await app.locals.bucket.file(fileName).createWriteStream().end(file?.buffer)
+            res.status(200).send('File uploaded successfully!')
+        }
+        else {
+            const err: CustomError = new Error(`Uploaded file is of type ${fileType}. Must be an image`)
+            err.statusCode = 401
+            err.clientMessage = 'The file should be .jpg .jpeg .png'
+            return next(err)
+        }
+    }
+    catch (err) {
+        next(err)
+    }
+}
+
 const user = {
     register,
     login,
     logout,
     restaurants,
     dishes,
-    addAddress
+    addAddress,
+    uploadPhoto
 }
 
 export default user
