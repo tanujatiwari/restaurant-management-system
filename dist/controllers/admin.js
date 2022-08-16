@@ -38,6 +38,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const bcrypt = __importStar(require("bcrypt"));
 const index_1 = __importDefault(require("../dbHelper/index"));
 const models_1 = __importDefault(require("../models"));
+const index_2 = __importDefault(require("../firebase/index"));
 const login = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { email, password } = req.body;
@@ -179,8 +180,17 @@ const addMember = (request, res, next) => __awaiter(void 0, void 0, void 0, func
 });
 const addRestaurant = (request, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const req = request;
+    const file = req.file;
     const { name, lat, lon } = req.body;
     const geopoint = `${lon}, ${lat}`;
+    const fileType = file === null || file === void 0 ? void 0 : file.originalname.split('.')[1];
+    if (fileType !== 'jpg' && fileType !== 'jpeg' && fileType !== 'png') {
+        const err = new Error(`Uploaded file is of type ${fileType}. Must be an image`);
+        err.statusCode = 401;
+        err.clientMessage = 'The file should be .jpg .jpeg .png';
+        return next(err);
+    }
+    const client = yield models_1.default.connect();
     try {
         const { adminId } = req;
         const checkRestaurantExists = yield index_1.default.checkRestaurantExists(name, geopoint);
@@ -190,17 +200,36 @@ const addRestaurant = (request, res, next) => __awaiter(void 0, void 0, void 0, 
             err.clientMessage = `Restaurant already exists!`;
             return next(err);
         }
-        yield index_1.default.addRest(name, geopoint, adminId);
+        yield client.query('BEGIN');
+        const restId = yield index_1.default.addRest(name, geopoint, adminId);
+        const path = 'restaurants/' + restId.rows[0].id + '/venue/';
+        const fileName = (file === null || file === void 0 ? void 0 : file.originalname.split('.')[0]) + '-' + Date.now() + `.${fileType}`;
+        const firebaseFileName = path + fileName;
+        index_2.default.file(firebaseFileName).createWriteStream().end(file === null || file === void 0 ? void 0 : file.buffer);
+        const newRestImage = yield index_1.default.addImage(fileName, path, 'restaurant');
+        yield index_1.default.addRestImageDetails(restId.rows[0].id, newRestImage.rows[0].id);
+        yield client.query('COMMIT');
         res.status(201).send('Restaurant added');
     }
     catch (e) {
+        client.query('ROLLBACK');
+        client.release();
         next(e);
     }
 });
 const addDish = (request, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const req = request;
+    const file = req.file;
     const { name, description } = req.body;
     const { restId } = req.params;
+    const fileType = file === null || file === void 0 ? void 0 : file.originalname.split('.')[1];
+    if (fileType !== 'jpg' && fileType !== 'jpeg' && fileType !== 'png') {
+        const err = new Error(`Uploaded file is of type ${fileType}. Must be an image`);
+        err.statusCode = 401;
+        err.clientMessage = 'The file should be .jpg .jpeg .png';
+        return next(err);
+    }
+    const client = yield models_1.default.connect();
     try {
         const { adminId } = req;
         const checkRestaurantIdValid = yield index_1.default.checkRestaurantIdValid(restId);
@@ -217,11 +246,67 @@ const addDish = (request, res, next) => __awaiter(void 0, void 0, void 0, functi
             err.clientMessage = `Dish at restaurant already exists!`;
             return next(err);
         }
-        yield index_1.default.addDish(name, description, adminId, restId);
+        yield client.query('BEGIN');
+        const dishId = yield index_1.default.addDish(name, description, adminId, restId);
+        const path = 'restaurants/' + restId + '/dishes/';
+        const fileName = (file === null || file === void 0 ? void 0 : file.originalname.split('.')[0]) + '-' + Date.now() + `.${fileType}`;
+        const firebaseFileName = path + fileName;
+        yield index_2.default.file(firebaseFileName).createWriteStream().end(file === null || file === void 0 ? void 0 : file.buffer);
+        const newDishImage = yield index_1.default.addImage(fileName, path, 'dish');
+        yield index_1.default.addDishImageDetails(dishId.rows[0].id, newDishImage.rows[0].id);
+        yield client.query('COMMIT');
         res.status(201).send('Dish added to your restaurant!');
     }
     catch (e) {
+        yield client.query('ROLLBACK');
+        client.release();
         next(e);
+    }
+});
+const uploadImage = (request, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const req = request;
+    const { restId, dishId } = req.body;
+    const client = yield models_1.default.connect();
+    try {
+        const file = req.file;
+        const fileType = file === null || file === void 0 ? void 0 : file.originalname.split('.')[1];
+        if (fileType === 'jpg' || fileType === 'jpeg' || fileType === 'png') {
+            if (!dishId) {
+                //only uploading venue photos
+                const path = 'restaurants/' + restId + '/venue/';
+                const fileName = (file === null || file === void 0 ? void 0 : file.originalname.split('.')[0]) + '-' + Date.now() + `.${fileType}`;
+                const firebaseFileName = path + fileName;
+                yield client.query('BEGIN');
+                yield index_2.default.file(firebaseFileName).createWriteStream().end(file === null || file === void 0 ? void 0 : file.buffer);
+                const newRestImage = yield index_1.default.addImage(fileName, path, 'restaurant');
+                yield index_1.default.addRestImageDetails(restId, newRestImage.rows[0].id);
+                yield client.query('COMMIT');
+                res.status(200).send('File uploaded successfully!');
+            }
+            else {
+                //only uploading dish photos
+                const path = 'restaurants/' + restId + '/dishes/';
+                const fileName = (file === null || file === void 0 ? void 0 : file.originalname.split('.')[0]) + '-' + Date.now() + `.${fileType}`;
+                const firebaseFileName = path + fileName;
+                yield client.query('BEGIN');
+                yield index_2.default.file(firebaseFileName).createWriteStream().end(file === null || file === void 0 ? void 0 : file.buffer);
+                const newDishImage = yield index_1.default.addImage(fileName, path, 'dish');
+                yield index_1.default.addDishImageDetails(dishId, newDishImage.rows[0].id);
+                yield client.query('COMMIT');
+                res.status(200).send('File uploaded successfully!');
+            }
+        }
+        else {
+            const err = new Error(`Uploaded file is of type ${fileType}. Must be an image`);
+            err.statusCode = 401;
+            err.clientMessage = 'The file should be .jpg .jpeg .png';
+            return next(err);
+        }
+    }
+    catch (err) {
+        yield client.query('ROLLBACK');
+        client.release();
+        next(err);
     }
 });
 const admin = {
@@ -231,6 +316,7 @@ const admin = {
     addMember,
     addRestaurant,
     getAllSubadmins,
-    getAllUsers
+    getAllUsers,
+    uploadImage
 };
 exports.default = admin;

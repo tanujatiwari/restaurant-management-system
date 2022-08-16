@@ -2,23 +2,9 @@ import bcrypt from 'bcrypt'
 import query from '../dbHelper/index'
 import pool from '../models/index'
 
-import express from 'express';
-const app = express()
-
-import path from 'path';
-
 import { Request, Response, NextFunction } from 'express'
 
-import admin from "firebase-admin"
-
-const firebaseAccountCredentials = require('../serviceAccountKey.json')
-
-admin.initializeApp({
-    credential: admin.credential.cert(firebaseAccountCredentials),
-    storageBucket: process.env.FIREBASE_BUCKET,
-});
-
-app.locals.bucket = admin.storage().bucket()
+import storage from '../firebase/index'
 
 interface CustomError extends Error {
     statusCode?: number;
@@ -39,7 +25,6 @@ interface CustomRequest extends Request {
 
 const restaurants = async (req: Request, res: Response, next: NextFunction) => {
     const { limit = 10, page = 1, filterCol = 'ratings', filterOrder = 'asc' } = req.query as unknown as ReqQuery
-
     try {
         const restaurants = await query.getAllRestaurants(limit, (page - 1) * limit, filterCol, filterOrder)
         if (!restaurants) {
@@ -48,6 +33,33 @@ const restaurants = async (req: Request, res: Response, next: NextFunction) => {
             err.statusCode = 404
             return next(err)
         }
+
+        const allRestIds = restaurants.rows.map(e => e.id)
+        const allRestImages = await query.getAllRestaurantImages('restaurant', allRestIds)
+
+        const imageMap = new Map<string, string[]>()
+
+        for (let i = 0; i < allRestImages.rows.length; i++) {
+            const result = await storage.file(allRestImages.rows[i].path + allRestImages.rows[i].name).getSignedUrl({ action: 'read', expires: '02-02-3022' })
+            console.log(result)
+            console.log('1')
+            if (!imageMap.has(allRestImages.rows[i].restaurant_id)) {
+                imageMap.set(allRestImages.rows[i].restaurant_id, [result[0]])
+            }
+            else {
+                imageMap.get(allRestImages.rows[i].restaurant_id)?.push(result[0])
+            }
+        }
+
+        restaurants.rows.forEach(rest => {
+            if (!imageMap.get(rest.id)) {
+                rest.images = []
+            }
+            else {
+                rest.images = imageMap.get(rest.id)
+            }
+        })
+
         const restaurantCount: number = restaurants.rows.length === 0 ? 0 : restaurants.rows[0].count
         const dataToSend = {
             totalRestaurants: restaurantCount,
@@ -78,6 +90,33 @@ const dishes = async (req: Request, res: Response, next: NextFunction) => {
             err.statusCode = 404
             return next(err)
         }
+
+        const allDishIds = dishes.rows.map(e => e.id)
+        const allDishImages = await query.getAllDishImages('dish', allDishIds)
+
+        console.log(allDishImages)
+
+        const imageMap = new Map<string, string[]>()
+
+        for (let i = 0; i < allDishImages.rows.length; i++) {
+            const result = await storage.file(allDishImages.rows[i].path + allDishImages.rows[i].name).getSignedUrl({ action: 'read', expires: '02-02-3022' })
+            if (!imageMap.has(allDishImages.rows[i].dish_id)) {
+                imageMap.set(allDishImages.rows[i].dish_id, [result[0]])
+            }
+            else {
+                imageMap.get(allDishImages.rows[i].dish_id)?.push(result[0])
+            }
+        }
+
+        dishes.rows.forEach(dish=> {
+            if (!imageMap.get(dish.id)) {
+                dish.images = []
+            }
+            else {
+                dish.images = imageMap.get(dish.id)
+            }
+        })
+
         const dishCount: number = dishes.rows.length === 0 ? 0 : dishes.rows[0].count
         const dataToSend = {
             totalDishes: dishCount,
@@ -185,38 +224,13 @@ const logout = async (request: Request, res: Response, next: NextFunction) => {
     }
 }
 
-const uploadPhoto = async (request: Request, res: Response, next: NextFunction) => {
-    const req = request as CustomRequest
-    try {
-        const file = req.file
-        const fileType = req.file?.originalname.split('.')[1]
-        if (fileType === 'jpg' || fileType ==='jpeg' || fileType==='png') {
-            const userId = req.userId
-            const name = file?.originalname as string
-            const fileName = userId + name + path.extname(name)
-            await app.locals.bucket.file(fileName).createWriteStream().end(file?.buffer)
-            res.status(200).send('File uploaded successfully!')
-        }
-        else {
-            const err: CustomError = new Error(`Uploaded file is of type ${fileType}. Must be an image`)
-            err.statusCode = 401
-            err.clientMessage = 'The file should be .jpg .jpeg .png'
-            return next(err)
-        }
-    }
-    catch (err) {
-        next(err)
-    }
-}
-
 const user = {
     register,
     login,
     logout,
     restaurants,
     dishes,
-    addAddress,
-    uploadPhoto
+    addAddress
 }
 
 export default user

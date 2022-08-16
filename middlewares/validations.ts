@@ -100,6 +100,21 @@ const validations = {
             return next(err)
         }
         next()
+    },
+
+    validateUploadImageDetails: async (req: Request, res: Response, next: NextFunction) => {
+        const uploadDetailsSchema = Joi.object({
+            restId: Joi.string().required(),
+            dishId: Joi.string()
+        })
+        const { error } = uploadDetailsSchema.validate(req.body);
+        if (error) {
+            const err: CustomError = new Error(error.message)
+            err.statusCode = 400
+            err.clientMessage = error.message
+            return next(err)
+        }
+        next()
     }
 }
 

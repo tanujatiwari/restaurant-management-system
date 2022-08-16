@@ -3,6 +3,8 @@ import query from '../dbHelper/index'
 import pool from '../models'
 import { Request, Response, NextFunction } from 'express'
 
+import storage from '../firebase/index'
+
 interface CustomError extends Error {
     clientMessage?: string,
     statusCode?: number
@@ -118,7 +120,6 @@ const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
 
         const userIdArray = users.map(e => e.user_id)
         const allUsersAddresses = await query.getAllAddresses(userIdArray);
-        
         const addressMap = new Map<string, string[]>()
         const userAddresses: UserAddress[] = allUsersAddresses.rows
         userAddresses.forEach(item => {
@@ -182,8 +183,17 @@ const addMember = async (request: Request, res: Response, next: NextFunction) =>
 
 const addRestaurant = async (request: Request, res: Response, next: NextFunction) => {
     const req = request as CustomRequest
+    const file = req.file
     const { name, lat, lon } = req.body as unknown as { name: string, lat: number, lon: number }
     const geopoint = `${lon}, ${lat}`;
+    const fileType = file?.originalname.split('.')[1]
+    if (fileType !== 'jpg' && fileType !== 'jpeg' && fileType !== 'png') {
+        const err: CustomError = new Error(`Uploaded file is of type ${fileType}. Must be an image`)
+        err.statusCode = 401
+        err.clientMessage = 'The file should be .jpg .jpeg .png'
+        return next(err)
+    }
+    const client = await pool.connect()
     try {
         const { adminId } = req
         const checkRestaurantExists = await query.checkRestaurantExists(name, geopoint);
@@ -193,18 +203,37 @@ const addRestaurant = async (request: Request, res: Response, next: NextFunction
             err.clientMessage = `Restaurant already exists!`
             return next(err)
         }
-        await query.addRest(name, geopoint, adminId)
+        await client.query('BEGIN')
+        const restId = await query.addRest(name, geopoint, adminId)
+        const path = 'restaurants/' + restId.rows[0].id + '/venue/'
+        const fileName = file?.originalname.split('.')[0] + '-' + Date.now() + `.${fileType}`
+        const firebaseFileName = path + fileName
+        storage.file(firebaseFileName).createWriteStream().end(file?.buffer)
+        const newRestImage = await query.addImage(fileName, path, 'restaurant');
+        await query.addRestImageDetails(restId.rows[0].id, newRestImage.rows[0].id)
+        await client.query('COMMIT')
         res.status(201).send('Restaurant added')
     }
     catch (e) {
+        client.query('ROLLBACK')
+        client.release()
         next(e)
     }
 }
 
 const addDish = async (request: Request, res: Response, next: NextFunction) => {
     const req = request as CustomRequest
+    const file = req.file
     const { name, description } = req.body as { name: string, description: string }
     const { restId } = req.params as { restId: string }
+    const fileType = file?.originalname.split('.')[1]
+    if (fileType !== 'jpg' && fileType !== 'jpeg' && fileType !== 'png') {
+        const err: CustomError = new Error(`Uploaded file is of type ${fileType}. Must be an image`)
+        err.statusCode = 401
+        err.clientMessage = 'The file should be .jpg .jpeg .png'
+        return next(err)
+    }
+    const client = await pool.connect()
     try {
         const { adminId } = req
         const checkRestaurantIdValid = await query.checkRestaurantIdValid(restId)
@@ -221,22 +250,80 @@ const addDish = async (request: Request, res: Response, next: NextFunction) => {
             err.clientMessage = `Dish at restaurant already exists!`
             return next(err)
         }
-        await query.addDish(name, description, adminId, restId)
+        await client.query('BEGIN')
+        const dishId = await query.addDish(name, description, adminId, restId)
+        const path = 'restaurants/' + restId + '/dishes/'
+        const fileName = file?.originalname.split('.')[0] + '-' + Date.now() + `.${fileType}`
+        const firebaseFileName = path + fileName
+        await storage.file(firebaseFileName).createWriteStream().end(file?.buffer)
+        const newDishImage = await query.addImage(fileName, path, 'dish');
+        await query.addDishImageDetails(dishId.rows[0].id, newDishImage.rows[0].id)
+        await client.query('COMMIT')
         res.status(201).send('Dish added to your restaurant!')
     }
     catch (e) {
+        await client.query('ROLLBACK')
+        client.release()
         next(e)
     }
 }
 
-const admin = { 
+const uploadImage = async (request: Request, res: Response, next: NextFunction) => {
+    const req = request as CustomRequest
+    const { restId, dishId } = req.body as { restId: string, dishId: string }
+    const client = await pool.connect()
+    try {
+        const file = req.file
+        const fileType = file?.originalname.split('.')[1]
+        if (fileType === 'jpg' || fileType === 'jpeg' || fileType === 'png') {
+            if (!dishId) {
+                //only uploading venue photos
+                const path = 'restaurants/' + restId + '/venue/'
+                const fileName = file?.originalname.split('.')[0] + '-' + Date.now() + `.${fileType}`
+                const firebaseFileName = path + fileName
+                await client.query('BEGIN')
+                await storage.file(firebaseFileName).createWriteStream().end(file?.buffer)
+                const newRestImage = await query.addImage(fileName, path, 'restaurant');
+                await query.addRestImageDetails(restId, newRestImage.rows[0].id)
+                await client.query('COMMIT')
+                res.status(200).send('File uploaded successfully!')
+            }
+            else {
+                //only uploading dish photos
+                const path = 'restaurants/' + restId + '/dishes/'
+                const fileName = file?.originalname.split('.')[0] + '-' + Date.now() + `.${fileType}`
+                const firebaseFileName = path + fileName
+                await client.query('BEGIN')
+                await storage.file(firebaseFileName).createWriteStream().end(file?.buffer)
+                const newDishImage = await query.addImage(fileName, path, 'dish');
+                await query.addDishImageDetails(dishId, newDishImage.rows[0].id)
+                await client.query('COMMIT')
+                res.status(200).send('File uploaded successfully!')
+            }
+        }
+        else {
+            const err: CustomError = new Error(`Uploaded file is of type ${fileType}. Must be an image`)
+            err.statusCode = 401
+            err.clientMessage = 'The file should be .jpg .jpeg .png'
+            return next(err)
+        }
+    }
+    catch (err) {
+        await client.query('ROLLBACK')
+        client.release()
+        next(err)
+    }
+}
+
+const admin = {
     login,
     logout,
     addDish,
     addMember,
     addRestaurant,
     getAllSubadmins,
-    getAllUsers
+    getAllUsers,
+    uploadImage
 }
 
 export default admin

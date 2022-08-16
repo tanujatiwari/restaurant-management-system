@@ -102,6 +102,20 @@ const validations = {
             return next(err);
         }
         next();
+    }),
+    validateUploadImageDetails: (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+        const uploadDetailsSchema = joi_1.default.object({
+            restId: joi_1.default.string().required(),
+            dishId: joi_1.default.string()
+        });
+        const { error } = uploadDetailsSchema.validate(req.body);
+        if (error) {
+            const err = new Error(error.message);
+            err.statusCode = 400;
+            err.clientMessage = error.message;
+            return next(err);
+        }
+        next();
     })
 };
 exports.default = validations;

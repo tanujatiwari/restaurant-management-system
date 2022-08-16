@@ -6,7 +6,6 @@ import authenticateUser from '../middlewares/authenticateUser'
 import validations from '../middlewares/validations';
 
 import multer from 'multer'
-// const upload = multer({ dest: process.env.FIREBASE_BUCKET })
 const upload=multer({storage: multer.memoryStorage()})
 
 router.get('/restaurants', user.restaurants);
@@ -20,7 +19,5 @@ router.post('/login', validations.validateLoginDetails, user.login)
 router.post('/logout', authenticateUser, user.logout)
 
 router.post('/addresses', authenticateUser, validations.validateAddress, user.addAddress)
-
-router.post('/profile-photo', authenticateUser, upload.single('image'), user.uploadPhoto)
 
 export default router

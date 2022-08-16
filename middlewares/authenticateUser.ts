@@ -37,6 +37,7 @@ async function authenticateUser(request: Request, res: Response, next: NextFunct
     
     req.userId = checkValidSession.rows[0].user_id
     req.sessionId = sessionId
+    
     next()
 }
 

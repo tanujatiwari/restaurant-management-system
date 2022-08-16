@@ -2,3 +2,5 @@
 .env
 database.json
 /pgdata
+/dist
+serviceAccountKey.json

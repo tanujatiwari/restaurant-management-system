@@ -89,18 +89,16 @@ const query = {
         where session_id=$2
     `, [currentDate, sessionId]);
     }),
-    addRest: (name, geopoint, adminId) => __awaiter(void 0, void 0, void 0, function* () {
+    addRest: (name, location, adminId) => __awaiter(void 0, void 0, void 0, function* () {
         return yield index_1.default.query(`
             insert into restaurants (name,location,user_id)
-            values($1, $2, $3')
-            on conflict (name,geopoint)
-            do update set
-        `, [name, geopoint, adminId]);
+            values($1, $2, $3) returning id
+        `, [name, location, adminId]);
     }),
     addDish: (name, description, adminId, restaurantId) => __awaiter(void 0, void 0, void 0, function* () {
         return yield index_1.default.query(`
         insert into dishes (name, description, user_id, restaurant_id)
-        values($1, $2, $3, $4)
+        values($1, $2, $3, $4) returning id
     `, [name, description, adminId, restaurantId]);
     }),
     getUsersBySubadmin: (subadminId, filterCol, filterOrder, limit, offset) => __awaiter(void 0, void 0, void 0, function* () {
@@ -205,15 +203,44 @@ const query = {
     }),
     checkRestaurantIdValid: (restaurantId) => __awaiter(void 0, void 0, void 0, function* () {
         return index_1.default.query(`
-        select name from restaurants
-        where id =$1 and is_archived=false
+            select name from restaurants
+            where id =$1 and is_archived=false
     `, [restaurantId]);
     }),
     getAllAddresses: (userIdArray) => __awaiter(void 0, void 0, void 0, function* () {
         return index_1.default.query(`
-        select user_id, address from addresses
-        where user_id=any ($1) and is_archived=false
+            select user_id, address from addresses
+            where user_id=any ($1) and is_archived=false
     `, [userIdArray]);
+    }),
+    addImage: (name, path, category) => __awaiter(void 0, void 0, void 0, function* () {
+        return index_1.default.query(`
+            insert into images(name,path,category) values($1,$2,$3) returning id;
+        `, [name, path, category]);
+    }),
+    addRestImageDetails: (restaurantId, imageId) => __awaiter(void 0, void 0, void 0, function* () {
+        return index_1.default.query(`
+            insert into restaurant_upload_details values($1,$2)
+        `, [restaurantId, imageId]);
+    }),
+    addDishImageDetails: (dishId, imageId) => __awaiter(void 0, void 0, void 0, function* () {
+        return index_1.default.query(`
+            insert into dish_upload_detail values($1,$2)
+    `, [dishId, imageId]);
+    }),
+    getAllRestaurantImages: (category, restaurants) => __awaiter(void 0, void 0, void 0, function* () {
+        return index_1.default.query(`
+            select id,name,path, created_at,restaurant_id from images
+            join restaurant_upload_details on id=image_id
+            where restaurant_id=any($2) and category=$1 
+        `, [category, restaurants]);
+    }),
+    getAllDishImages: (category, dishes) => __awaiter(void 0, void 0, void 0, function* () {
+        return index_1.default.query(`
+            select id,name,path, created_at,dish_id from images
+            join dish_upload_detail on id=image_id
+            where dish_id=any($2) and category=$1 
+        `, [category, dishes]);
     })
 };
 exports.default = query;

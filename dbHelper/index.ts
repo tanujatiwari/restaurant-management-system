@@ -1,3 +1,4 @@
+import { PoolClient } from 'pg'
 import pool from '../models/index'
 
 const query = {
@@ -86,19 +87,17 @@ const query = {
     `, [currentDate, sessionId]);
     },
 
-    addRest: async (name: string, geopoint: string, adminId: string) => {
+    addRest: async (name: string, location: string, adminId: string) => {
         return await pool.query(`
             insert into restaurants (name,location,user_id)
-            values($1, $2, $3')
-            on conflict (name,geopoint)
-            do update set
-        `, [name, geopoint, adminId])
+            values($1, $2, $3) returning id
+        `, [name, location, adminId])
     },
 
     addDish: async (name: string, description: string, adminId: string, restaurantId: string) => {
         return await pool.query(`
         insert into dishes (name, description, user_id, restaurant_id)
-        values($1, $2, $3, $4)
+        values($1, $2, $3, $4) returning id
     `, [name, description, adminId, restaurantId])
     },
 
@@ -215,16 +214,50 @@ const query = {
 
     checkRestaurantIdValid: async (restaurantId: string) => {
         return pool.query(`
-        select name from restaurants
-        where id =$1 and is_archived=false
+            select name from restaurants
+            where id =$1 and is_archived=false
     `, [restaurantId])
     },
 
     getAllAddresses: async (userIdArray: Array<string>) => {
         return pool.query(`
-        select user_id, address from addresses
-        where user_id=any ($1) and is_archived=false
+            select user_id, address from addresses
+            where user_id=any ($1) and is_archived=false
     `, [userIdArray])
+    },
+
+    addImage: async (name: string, path: string, category: string) => {
+        return pool.query(`
+            insert into images(name,path,category) values($1,$2,$3) returning id;
+        `, [name, path, category])
+    },
+
+    addRestImageDetails: async (restaurantId: string, imageId: string) => {
+        return pool.query(`
+            insert into restaurant_upload_details values($1,$2)
+        `, [restaurantId, imageId])
+    },
+
+    addDishImageDetails: async (dishId: string, imageId: string) => {
+        return pool.query(`
+            insert into dish_upload_detail values($1,$2)
+    `, [dishId, imageId])
+    },
+
+    getAllRestaurantImages: async (category: string, restaurants: Array<string>) => {
+        return pool.query(`
+            select id,name,path, created_at,restaurant_id from images
+            join restaurant_upload_details on id=image_id
+            where restaurant_id=any($2) and category=$1 
+        `, [category, restaurants])
+    },
+
+    getAllDishImages: async (category: string, dishes: Array<string>) => {
+        return pool.query(`
+            select id,name,path, created_at,dish_id from images
+            join dish_upload_detail on id=image_id
+            where dish_id=any($2) and category=$1 
+        `, [category, dishes])
     }
 }
 
