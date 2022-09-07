@@ -1,6 +1,8 @@
-import admin from "firebase-admin"
+import admin, { ServiceAccount } from "firebase-admin"
 
-const firebaseAccountCredentials = require('../serviceAccountKey.json')
+import firebaseAdminCred from '../serviceKey.json'
+
+const firebaseAccountCredentials = firebaseAdminCred as ServiceAccount
 
 if (!admin.apps.length) {
     admin.initializeApp({

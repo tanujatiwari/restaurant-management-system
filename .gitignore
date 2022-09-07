@@ -3,4 +3,4 @@
 database.json
 /pgdata
 /dist
-serviceAccountKey.json
+serviceKey.json
