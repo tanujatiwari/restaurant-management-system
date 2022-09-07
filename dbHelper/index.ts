@@ -1,4 +1,3 @@
-import { PoolClient } from 'pg'
 import pool from '../models/index'
 
 const query = {
@@ -68,7 +67,8 @@ const query = {
     getUserCredentials: async (email: string) => {
         return await pool.query(`
             select id,password from users
-            where email=$1 and is_archived=false
+            join roles on id=user_id
+            where email=$1 and is_archived=false and role='user'
         `, [email])
     },
 

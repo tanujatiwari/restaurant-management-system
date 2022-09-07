@@ -8,6 +8,7 @@ if (!admin.apps.length) {
         storageBucket: process.env.FIREBASE_BUCKET,
     });
 }
-const storage = admin.storage().bucket()
+
+const storage= admin.storage().bucket()
 
 export default storage
